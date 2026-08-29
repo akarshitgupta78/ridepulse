@@ -1,0 +1,21 @@
+# Java / Spring Boot
+*.class
+target/
+.mvn/
+build/
+.gradle/
+
+# Python / ML
+__pycache__/
+*.pyc
+venv/
+.env
+
+# IDE configs
+.idea/
+.vscode/
+*.iml
+
+# OS / Windows files
+Thumbs.db
+Desktop.ini
