@@ -33,19 +33,23 @@ graph TD
 
 ---
 
-## 🧩 Microservices Matrix
+## 🌐 Port Reference & Microservices Matrix
 
-| Service | Port | Tech Stack | Responsibility |
+| Service / Container | Port | Tech Stack | Responsibility |
 | :--- | :--- | :--- | :--- |
 | **API Gateway** | `8088` | Spring Cloud Gateway | Reverse proxy, CORS unification, and route delegation |
 | **User Service** | `8081` | Spring Boot, JPA, PostgreSQL | Rider profiles and registration |
-| **Driver Service** | `8087` | Spring Boot, JPA, PostgreSQL | Driver onboarding and online/offline status management |
-| **Location Service** | `8084` | Spring Boot, Redis GEO, STOMP | Real-time driver GPS pings and proximity radius queries |
 | **Booking Service** | `8082` | Spring Boot, JPA, Kafka | Ride lifecycle state machine with `@Version` optimistic locking |
 | **Matching Engine** | `8083` | Spring Boot, Redisson, Kafka | Heuristic scoring formula & distributed locks (`RLock`) |
-| **ML Demand Pricing**| `8000` | Python, FastAPI, Uber H3, Redis | Real-time geospatial demand-to-supply surge calculation |
-| **Payment Service** | `8089` | Spring Boot, JPA, Redis, Kafka | Idempotent transaction settlement via Redis `SETNX` |
+| **Location Service** | `8084` | Spring Boot, Redis GEO, STOMP | Real-time driver GPS pings and proximity radius queries |
+| **Kafka UI** | `8085` | Provectus Kafka-UI (Docker) | Web console to inspect Kafka topics, partitions & messages |
 | **Notification Service**| `8086` | Spring Boot, WebSockets (STOMP) | Real-time client alerts via dedicated STOMP topics |
+| **Driver Service** | `8087` | Spring Boot, JPA, PostgreSQL | Driver onboarding and online/offline status management |
+| **Payment Service** | `8089` | Spring Boot, JPA, Redis, Kafka | Idempotent transaction settlement via Redis `SETNX` |
+| **ML Demand Pricing**| `8000` | Python, FastAPI, Uber H3, Redis | Real-time geospatial demand-to-supply surge calculation |
+| **PostgreSQL DB** | `5432` | PostgreSQL 16 (Docker) | Relational persistence store (`ridepulse_db`) |
+| **Redis Cache/Locks**| `6379` | Redis 7.2 (Docker) | Ephemeral geo-indexing, locks, and caching |
+| **Apache Kafka** | `9092` | Confluent Kafka 7.6 (Docker) | Event bus / messaging backbone in KRaft mode |
 
 ---
 
@@ -64,7 +68,7 @@ Start PostgreSQL, Redis, Apache Kafka (KRaft mode), and Kafka UI:
 ```bash
 docker compose up -d
 ```
-* Kafka UI available at: [http://localhost:8085](http://localhost:8085)
+* Kafka UI Web Dashboard: [http://localhost:8085](http://localhost:8085)
 
 ### 2. Start the ML Demand & Pricing Service
 ```bash
@@ -82,18 +86,18 @@ mvn clean install -DskipTests
 Launch the Spring Boot applications from your IDE (e.g., IntelliJ IDEA) or via CLI:
 * `ApiGatewayApplication` (`:8088`)
 * `UserServiceApplication` (`:8081`)
-* `DriverServiceApplication` (`:8087`)
-* `LocationServiceApplication` (`:8084`)
 * `BookingServiceApplication` (`:8082`)
 * `MatchingEngineApplication` (`:8083`)
-* `PaymentServiceApplication` (`:8089`)
+* `LocationServiceApplication` (`:8084`)
 * `NotificationServiceApplication` (`:8086`)
+* `DriverServiceApplication` (`:8087`)
+* `PaymentServiceApplication` (`:8089`)
 
 ---
 
 ## 🧪 End-to-End Simulation
 
-Test the entire distributed ride lifecycle through the API Gateway with the included automated test runner:
+Test the entire distributed ride lifecycle through the API Gateway (`:8088`) with the included automated test runner:
 
 ```bash
 pip install requests
