@@ -4,18 +4,34 @@ target/
 .mvn/
 build/
 .gradle/
+*.log
 
 # Python / ML
 __pycache__/
 *.pyc
 venv/
+.venv/
 .env
+
+# Frontend
+frontend/
+node_modules/
+dist/
+dist-ssr/
+*.local
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Documentation
+docs/
 
 # IDE configs
 .idea/
 .vscode/
 *.iml
 
-# OS / Windows files
+# OS / Windows & macOS
 Thumbs.db
 Desktop.ini
+.DS_Store

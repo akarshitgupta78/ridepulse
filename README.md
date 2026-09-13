@@ -1,14 +1,16 @@
-# RidePulse 🚗⚡
+# RidePulse 🚗
 
-**RidePulse** is a distributed, event-driven ride-hailing backend platform built with **Java 21**, **Spring Boot 3.3**, **Spring Cloud**, **Apache Kafka**, **Redis**, and **Python / FastAPI**. It models real-time driver tracking, intelligent dispatch matching with distributed locking, dynamic surge pricing via H3 geospatial indexing, and fault-tolerant payment settlement.
+**RidePulse** is a high-concurrency, event-driven distributed ride-hailing backend platform built with **Java 21**, **Spring Boot 3.3**, **Spring Cloud**, **Apache Kafka (KRaft)**, **Redis 7.2**, **PostgreSQL 16**, and **Python / FastAPI**.
+
+It features real-time driver geospatial tracking, heuristic-based dispatch matching with distributed concurrency locking, dynamic surge pricing via Uber H3 spatial indexing, and fault-tolerant idempotent payment settlements.
 
 ---
 
-## 🏗️ Architecture Overview
+## 🏗️ System Architecture
 
 ```mermaid
 graph TD
-    Client[Mobile / Web Clients] -->|REST & WebSockets| Gateway[API Gateway :8088]
+    Client[Client Applications / API Clients] -->|REST & WebSockets| Gateway[API Gateway :8088]
     
     Gateway --> UserSvc[User Service :8081]
     Gateway --> DriverSvc[Driver Service :8087]
@@ -18,30 +20,33 @@ graph TD
     Gateway --> NotifSvc[Notification Service :8086]
 
     LocSvc <-->|Geospatial Indexing| Redis[(Redis 7.2)]
+    PricingSvc <-->|H3 Demand/Supply Aggregation| Redis
     BookingSvc -->|State Machine & Optimistic Lock| Postgres[(PostgreSQL 16)]
-    BookingSvc -->|Emit ride.events| Kafka[(Apache Kafka KRaft)]
+    BookingSvc -->|Emit 'ride.events'| Kafka[(Apache Kafka KRaft)]
 
     Kafka -->|Consume RIDE_REQUESTED| MatchEng[Matching Engine :8083]
     Kafka -->|Consume RIDE_COMPLETED| PaymentSvc[Payment Service :8089]
     Kafka -->|Consume Lifecycle Events| NotifSvc
 
     MatchEng <-->|Distributed Lock RLock| Redis
-    MatchEng -->|Assign Driver| BookingSvc
+    MatchEng -->|Assign Driver REST| BookingSvc
     PaymentSvc <-->|Idempotency SETNX| Redis
     PaymentSvc --> Postgres
 ```
 
+For detailed in-depth service mechanics, state machines, and API specifications, see [docs/SERVICES_WALKTHROUGH.md](docs/SERVICES_WALKTHROUGH.md).
+
 ---
 
-## 🌐 Port Reference & Microservices Matrix
+## 🌐 Port Reference & Services Matrix
 
 | Service / Container | Port | Tech Stack | Responsibility |
 | :--- | :--- | :--- | :--- |
-| **API Gateway** | `8088` | Spring Cloud Gateway | Reverse proxy, CORS unification, and route delegation |
+| **API Gateway** | `8088` | Spring Cloud Gateway | Reverse proxy, CORS unification, and unified routing |
 | **User Service** | `8081` | Spring Boot, JPA, PostgreSQL | Rider profiles and registration |
 | **Booking Service** | `8082` | Spring Boot, JPA, Kafka | Ride lifecycle state machine with `@Version` optimistic locking |
-| **Matching Engine** | `8083` | Spring Boot, Redisson, Kafka | Heuristic scoring formula & distributed locks (`RLock`) |
-| **Location Service** | `8084` | Spring Boot, Redis GEO, STOMP | Real-time driver GPS pings and proximity radius queries |
+| **Matching Engine** | `8083` | Spring Boot, Redisson, Kafka | Heuristic scoring formula & distributed locking (`RLock`) |
+| **Location Service** | `8084` | Spring Boot, Redis GEO, STOMP | Real-time driver GPS ingestion and proximity radius queries |
 | **Kafka UI** | `8085` | Provectus Kafka-UI (Docker) | Web console to inspect Kafka topics, partitions & messages |
 | **Notification Service**| `8086` | Spring Boot, WebSockets (STOMP) | Real-time client alerts via dedicated STOMP topics |
 | **Driver Service** | `8087` | Spring Boot, JPA, PostgreSQL | Driver onboarding and online/offline status management |
@@ -68,7 +73,9 @@ Start PostgreSQL, Redis, Apache Kafka (KRaft mode), and Kafka UI:
 ```bash
 docker compose up -d
 ```
-* Kafka UI Web Dashboard: [http://localhost:8085](http://localhost:8085)
+* **Kafka UI Dashboard**: [http://localhost:8085](http://localhost:8085)
+
+---
 
 ### 2. Start the ML Demand & Pricing Service
 ```bash
@@ -76,35 +83,38 @@ cd services/ml-demand-pricing
 pip install -r requirements.txt
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-* Interactive Swagger Docs: [http://localhost:8000/docs](http://localhost:8000/docs)
+* **Interactive Swagger Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+
+---
 
 ### 3. Build & Run Java Microservices
-Build the multi-module Maven project:
+Build the multi-module Maven project from the root folder:
 ```bash
 mvn clean install -DskipTests
 ```
-Launch the Spring Boot applications from your IDE (e.g., IntelliJ IDEA) or via CLI:
-* `ApiGatewayApplication` (`:8088`)
-* `UserServiceApplication` (`:8081`)
-* `BookingServiceApplication` (`:8082`)
-* `MatchingEngineApplication` (`:8083`)
-* `LocationServiceApplication` (`:8084`)
-* `NotificationServiceApplication` (`:8086`)
-* `DriverServiceApplication` (`:8087`)
-* `PaymentServiceApplication` (`:8089`)
+
+Launch the Spring Boot applications from your IDE (e.g., IntelliJ IDEA) or terminal:
+- `ApiGatewayApplication` (`:8088`)
+- `UserServiceApplication` (`:8081`)
+- `BookingServiceApplication` (`:8082`)
+- `MatchingEngineApplication` (`:8083`)
+- `LocationServiceApplication` (`:8084`)
+- `NotificationServiceApplication` (`:8086`)
+- `DriverServiceApplication` (`:8087`)
+- `PaymentServiceApplication` (`:8089`)
 
 ---
 
 ## 🧪 End-to-End Simulation
 
-Test the entire distributed ride lifecycle through the API Gateway (`:8088`) with the included automated test runner:
+Validate the entire distributed ride lifecycle through the API Gateway (`:8088`) with the automated simulation script:
 
 ```bash
 pip install requests
 python simulate_ride_flow.py
 ```
 
-### Flow Executed:
+### Lifecycle Executed:
 1. **Rider Registration** (`POST /api/v1/users/register`)
 2. **Driver Onboarding** (`POST /api/v1/drivers/register`)
 3. **Geospatial Tracking Verification** (`GET /api/v1/locations/nearby`)
@@ -116,7 +126,7 @@ python simulate_ride_flow.py
 
 ## 🛡️ Key Architectural Patterns
 
-- **Distributed Locking**: Redisson `RLock` ensures a driver is never matched to two riders concurrently.
-- **Optimistic Concurrency Control**: `@Version` prevents race conditions on ride state transitions.
-- **Idempotent Consumers**: Redis `SETNX` with 24h TTL guarantees payments are settled exactly once despite at-least-once Kafka deliveries.
-- **Geospatial Hexagonal Binning**: Uber H3 (Resolution 7) aggregates localized demand/supply dynamically.
+- **Distributed Locking**: Redisson `RLock` prevents race conditions, ensuring a driver is never matched to two riders concurrently.
+- **Optimistic Concurrency Control**: JPA `@Version` guarantees safe ride state transitions.
+- **Idempotent Consumers**: Atomic Redis `SETNX` with a 24-hour TTL prevents duplicate payment processing from at-least-once Kafka deliveries.
+- **Geospatial Hexagonal Binning**: Uber H3 (Resolution 7) bins coordinates into ~1.2km radius cells for real-time demand-to-supply surge calculations.
