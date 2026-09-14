@@ -34,7 +34,7 @@ graph TD
     PaymentSvc --> Postgres
 ```
 
-For detailed in-depth service mechanics, state machines, and API specifications, see [docs/SERVICES_WALKTHROUGH.md](docs/SERVICES_WALKTHROUGH.md).
+<!--For detailed in-depth service mechanics, state machines, and API specifications, see [docs/SERVICES_WALKTHROUGH.md](docs/SERVICES_WALKTHROUGH.md). -->
 
 ---
 
@@ -83,7 +83,7 @@ cd services/ml-demand-pricing
 pip install -r requirements.txt
 python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
-* **Interactive Swagger Docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
+<!-- * **Interactive Swagger Docs**: [http://localhost:8000/docs](http://localhost:8000/docs) -->
 
 ---
 
